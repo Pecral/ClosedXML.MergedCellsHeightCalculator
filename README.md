@@ -34,17 +34,29 @@ int roundedMultiplier = (int) (heightMultiplier + 0.9);
 var calculatedHeight = neededHeightForOneRow * (roundedMultiplier >= 1 ? roundedMultiplier : 1);
 ```
 
+If you want to adjust the row to the needed height automatically, you can use the IXLRow HeightAutoFit(bool allowHeightDecrease)-extension.
+This function will search for all merged cells that are located in this row and calculate the height for these ranges.
+The greatest height will be used as the new row height if it's either greater than the current height or if the user allowed the row's height to decrease.
+
+However there's one problem. If a single cell (with activated wordwrap) has a greater calculated height than all of the merged cells, it would be better to let Excel
+calculate the row height. The problem is that once a custom row height is set, Excel won't override this height. We can't change this behaviour with an extension. It's possible to set the bool "CustomHeight" of an OpenXML row in the source code of ClosedXML's save()-function though.
+
 ###Usage
 ---
 
 ```csharp
+
 var range = sheet.Range("A1:C1");
 range.Merge();
 range.Style.Alignment.WrapText = true;
 range.Value = "ehsjsadasdasdgrsoasdasdbtiejhz34908zug3489tqu32452345rt42r";
 
 var row = sheet.Row(1);
+//you can either use the calculated height of one range..
 row.Height = range.CalculateMergedCellWordWrapHeight();
+//.. or let the row calculate its greatest height and let it use that automatically
+row.HeightAutoFit(true);
+
 ```
 
 

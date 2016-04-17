@@ -9,6 +9,78 @@ namespace ClosedXML.MergedCellsHeightCalculator
     public static class IXLExtensions
     {
         /// <summary>
+        /// Set the perfect row height..
+        /// </summary>
+        /// <param name="row"></param>
+        /// <param name="allowHeightDecrease">Specify whether the row should be allowed to be shrinked lower than the current height</param>
+        /// <param name="calculateSingleCellHeight">If you want use the calculated height even for single cells (rather than letting Excel calculate it), set it to true.
+        /// This is useful if the row height already has a custom height (Excel wouldn't override this height)</param>
+        public static void HeightAutoFit(this IXLRow row, bool allowHeightDecrease = false, bool calculateSingleCellHeight = false)
+        {
+            //get worksheet
+            IXLWorksheet sheet = row.Worksheet;
+
+            int rowNumber = row.RowNumber();
+            //get all the merged cells of this row
+            IEnumerable<IXLRange> mergedCells = sheet.MergedRanges.Where(x => x.FirstRow().RowNumber() == rowNumber && x.LastRow().RowNumber() == rowNumber);
+
+            double maxHeight = 0;
+
+            foreach (var range in mergedCells)
+            {
+                //check whether wordwrap mode is activated for either the first cell or the entire range
+                bool calculateHeight = range.Style.Alignment.WrapText || range.FirstCell().Style.Alignment.WrapText;
+
+                if (calculateHeight)
+                {
+                    double neededRowHeight = range.CalculateMergedCellWordWrapHeight();
+
+                    if (neededRowHeight > maxHeight)
+                    {
+                        maxHeight = neededRowHeight;
+                    }
+                }
+            }
+
+            //check whether any single cell with activated wordwrap that needs more height than
+            //the merged cells exists
+            var cellsWithWordWrap = row.Cells(c => c.IsMerged() == false && c.Style.Alignment.WrapText);
+            foreach (var cell in cellsWithWordWrap)
+            {
+                //create range for cell (a little bit dirty)
+                var cellRange = cell.AsRange();
+                double neededRowHeight = cellRange.CalculateMergedCellWordWrapHeight();
+
+                //We could return here if the calculated height for the single cell is higher than the height for the merged cells,
+                //because Excel's WordWrap would be more precise than our function. The problem is that once a custom row height is set,
+                //Excel won't override this height. We can't change this behaviour with an extension,
+                //it's possible to set the bool "CustomHeight" in ClosedXML's source code though.
+                //Because of that we will use our own height here.
+                if (neededRowHeight > maxHeight)
+                {
+                    if (calculateSingleCellHeight)
+                    {
+                        maxHeight = neededRowHeight;
+                    }
+                    else
+                    {
+                        //let excel calculate it
+                        return;
+                    }
+                }
+            }
+
+            //set calculated height to current height if its 0
+            maxHeight = maxHeight > 0 ? maxHeight : row.Height;
+
+            //if the new height is lower than the current height and the user doesn't allow a decrease, we will do nothing
+            if (allowHeightDecrease || maxHeight > row.Height)
+            {
+                row.Height = maxHeight;
+            }
+        }
+
+        /// <summary>
         /// Calculate the row height that is needed to display the content of a merged cell with activated wordwrap
         /// </summary>
         /// <param name="range">The range across a merged cell within a single row</param>
