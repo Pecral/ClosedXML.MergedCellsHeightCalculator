@@ -44,7 +44,7 @@ namespace ClosedXML.MergedCellsHeightCalculator
 
             //check whether any single cell with activated wordwrap that needs more height than
             //the merged cells exists
-            var cellsWithWordWrap = row.Cells(c => c.IsMerged() == false && c.Style.Alignment.WrapText);
+            var cellsWithWordWrap = row.CellsUsed().Where(c => c.IsMerged() == false && c.Style.Alignment.WrapText);
             foreach (var cell in cellsWithWordWrap)
             {
                 //create range for cell (a little bit dirty)
